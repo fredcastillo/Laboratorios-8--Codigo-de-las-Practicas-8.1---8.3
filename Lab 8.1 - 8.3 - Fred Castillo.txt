@@ -1,0 +1,223 @@
+============================================
+
+PRACTICA 8.1 - INSTALACION Y CONFIGURACION DE DOCKER
+
+#1 Actualizar el sistema
+sudo dnf update -y
+
+#2 Desinstalamos todo para que nada se superponga (en caso de haber antiguas versiones de Docker)
+
+sudo dnf remove -y docker \
+    docker-client \
+    docker-client-latest \
+    docker-common \
+    docker-latest \
+    docker-latest-logrotate \
+    docker-logrotate \
+    docker-engine
+
+--Para borrar configuraciones antiguas--
+
+sudo rm -rf /var/lib/docker
+sudo rm -rf /var/lib/containerd
+
+---
+
+#3 Instalar dependencias
+sudo dnf install -y dnf-plugins-core
+
+#4 Agregar el repositorio oficial de Docker
+sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+
+#5 Instalar Docker Engine
+sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+#6 Habilitar y arrancar el servicio Docker
+sudo systemctl enable docker
+sudo systemctl start docker
+
+#7 Verificar estado de Docker
+sudo systemctl status docker
+
+#8 Probar instalación
+sudo docker run hello-world
+
+#9 Descargar la imagen de NGINX desde Docker Hub
+sudo docker search nginx
+sudo docker pull nginx
+
+#10 Crear directorio del volumen persistente
+sudo mkdir -p /home/website
+cd /home/website/
+
+#11 Crear archivo HTML con nombre y matrícula
+echo "<h1>Fred Sneyder Castillo Apolinar - Matrícula 2175</h1>" | sudo tee /home/website/index.html
+
+o
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Práctica Docker - Página</title>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; line-height: 1.6; padding: 40px; background:#f7f7f7; color:#222; }
+    .card { max-width:700px; margin:0 auto; background:#fff; border-radius:8px; padding:24px; box-shadow:0 6px 18px rgba(0,0,0,0.06); }
+    h1 { margin-top:0; }
+    .meta { margin-top:12px; font-size:1.1rem; color:#444; }
+    .label { font-weight:700; color:#333; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Práctica Docker</h1>
+    <p class="meta"><span class="label">Nombre:</span> Fred Sneyder Castillo Apolinar</p>
+    <p class="meta"><span class="label">Matrícula:</span>2025-2175</p>
+    <hr />
+    <p>Servidor: NGINX en contenedor Docker</p>
+  </div>
+</body>
+</html>
+
+
+#12 Crear el contenedor NGINX exponiendo puerto 8888 → 80 y montando el volumen
+sudo docker run -d --name web1 -p 8888:80 -v /home/website:/usr/share/nginx/html nginx
+
+#13 Ver contenedores corriendo
+sudo docker ps -a
+
+#14 Probar en navegador: 127.0.0.1:8888
+
+
+COMANDOS ADICIONALES
+
+
+============================================
+
+PRACTICA #8.2 - INSTALACION DE PORTAINER
+
+# PRACTICA 2: Instalación y Configuración de Portainer
+
+#1 – Descargar la imagen de Portainer desde Docker Hub
+sudo docker pull portainer/portainer-ce
+
+#2 – Crear un volumen para almacenar la configuración de Portainer
+sudo docker volume create portainer_data
+
+#3 – Crear y ejecutar el contenedor de Portainer CE
+# -d                   → modo detach (segundo plano)
+# -p 8000:8000         → puerto de API/Edge
+# -p 9443:9443         → interfaz web HTTPS
+# -v docker.sock       → permite que Portainer controle Docker del host
+# -v portainer_data    → persistencia de datos
+sudo docker run -d \
+  -p 8000:8000 \
+  -p 9443:9443 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v portainer_data:/data \
+  --name portainer \
+  portainer/portainer-ce
+
+#4 – Verificar que el contenedor está en ejecución
+sudo docker ps -a
+
+#5 – Acceder a la interfaz web de Portainer
+# Abrir en el navegador:
+# https://127.0.0.1:9443
+
+#6
+nombre: admin
+contraseña: freddocker123
+
+#7 - ve a add environment y escoge standalone
+
+#8 - copia el código que te proporcionan y pégalo en la terminal de Linux
+#9 - mas abajo escribe nombre y contraseña y acepta, en mi caso:
+nombre: os3-fred
+contraseña: freddocker123
+
+#10 ve al menu, busca os3-fred y selecciona la opción de contenedores, haya veras el contenedor de nginx
+#11 - click al contenedor de nginx y probar encendiendo y apagando.
+
+
+============================================
+
+PRACTICA #3 - DESPLIEGE DE CONTENEDOR DE WORDRESS UTILIZANDO DOCKER COMPOSE
+
+#1 — Instalación de Docker-Compose
+-----------------------------------
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+docker-compose --version
+
+
+#2 — Crear el directorio del proyecto
+--------------------------------------
+mkdir ~/wordpress
+cd ~/wordpress
+
+
+#3 — Crear archivo docker-compose.yml
+--------------------------------------
+nano docker-compose.yml
+
+# Pegar dentro del archivo: Crea la base de datos para WordPress, configura credenciales y almacena datos en un volumen persistente. Levanta WordPress, expone el sitio por el puerto 8080, se conecta a MySQL y almacena sus archivos en un volumen persistente.
+#############################################################
+version: '3.8'
+
+services:
+  db:
+    image: mysql:5.7
+    container_name: wp_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wpuser
+      MYSQL_PASSWORD: wppass
+    volumes:
+      - db_data:/var/lib/mysql
+
+  wordpress:
+    image: wordpress:latest
+    container_name: wp_app
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: wpuser
+      WORDPRESS_DB_PASSWORD: wppass
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - wp_data:/var/www/html
+    depends_on:
+      - db
+
+volumes:
+  db_data:
+  wp_data:
+#############################################################
+
+
+#4 — Desplegar contenedores
+------------------------------
+docker compose up -d
+
+# Verificar que están corriendo
+docker ps
+
+
+#5 — Acceder a WordPress desde el navegador
+----------------------------------------------
+# Abrir en el navegador:
+http://127.0.0.1:8080
+
+# Completar:
+# - Idioma
+# - Nombre del sitio
+# - Usuario admin
+# - Contraseña
+
+
